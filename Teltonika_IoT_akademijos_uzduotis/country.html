@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+
+    <title>Teltonika IoT academy task | Dominykas Gauronskis</title>
+</head>
+<header>
+    <img src="media/teltonika-logo.svg" class="logo" onclick="backToMain()">
+</header>
+    <body>
+        <main>
+            <div>
+                <h1>
+                    <span class="heading-width" id="heading"></span>
+                    <button class="add-button" id="add-country"><img src="media/plus-svg.svg" class="center"></button>
+                </h1>
+            </div>
+            <div id="myModal" class="modal">
+
+                <!-- Modal content -->
+                <div class="modal-content">
+                  <span class="close">&times;</span>
+                  <h2> Pridėti miestą </h2>
+                  <form id="add-data" action="https://akademija.teltonika.lt/api4/index.php/cities">
+                    <div class="modal-form">
+                        <label>Pavadinimas</label>
+                        <input type="text" id="name-input" name="name" required>
+                    </div>
+                    <div class="modal-form">
+                        <label>Užimamas plotas</label>
+                        <input type="text" id="area-input" name="area" required>
+                    </div>
+                    <div class="modal-form">
+                        <label>Gyventojų skaičius</label>
+                        <input type="text" id="population-input" name="population" required>
+                    </div>
+                    <div class="modal-form">
+                        <label>Miesto pašto kodas</label>
+                        <input type="text" id="postcode-input" name="postcode" required>
+                    </div>
+                    <input type="submit" class="save-button" value="Saugoti">
+                  </form>
+                </div>
+              
+              </div>
+
+              <div id="editModal" class="modal">
+
+                <!-- Modal content -->
+                <div class="modal-content">
+                  <span id="close" class="close">&times;</span>
+                  <h2> Redaguoti miestą </h2>
+                  <form id="edit-data">
+                    <div class="modal-form">
+                        <label>Pavadinimas</label>
+                        <input type="text" id="name-edit" name="name" required>
+                    </div>
+                    <div class="modal-form">
+                        <label>Užimamas plotas</label>
+                        <input type="text" id="area-edit" name="area" required>
+                    </div>
+                    <div class="modal-form">
+                        <label>Gyventojų skaičius</label>
+                        <input type="text" id="population-edit" name="population" required>
+                    </div>
+                    <div class="modal-form">
+                        <label>Miesto pašto kodas</label>
+                        <input type="text" id="postcode-edit" name="postcode" required>
+                    </div>
+                    <input type="submit" class="save-button" value="Saugoti">
+                  </form>
+                </div>
+              
+              </div>
+
+            <div class="search-div" id="search-div">
+                <div class= "search-form">
+                    <input type="text" class="search-field" id="search-field" />
+                    <button name="submit" type="submit" id="submit" onclick="searchInit()"></button>
+                </div>
+                <input type="text" class="filter-button" placeholder="Data filter" id="data-filter"
+                onfocus="(this.type='date')" 
+                onblur="filterTable()"/>
+            </div>
+            <div class="data-div">
+                <table class="data-display" id="data-display">
+                    <thead>
+                        <th >
+                            <div class="sort-header">
+                                Pavadinimas
+                                <div class="sort-form">
+                                    <button class="sort-button asc" onclick="sortTable(0)"></button>
+                                    <button class="sort-button desc" onclick="sortTable(1)"></button>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            Užimamas plotas
+                        </th>
+                        <th>
+                            Gyventojų skaičius
+                        </th>
+                        <th>
+                            Miesto pašto kodas
+                        </th>
+                        <th>
+                            Veiksmai
+                        </th>
+                    </thead>
+                    <tbody id="data-table">
+
+                    </tbody>
+                </table>
+            </div>
+            <div class="page-numbers" id="page-num">
+            </div>
+        </main>
+        <!-- src="scripts/loadData.js" -->
+        <script>
+            const queryString = window.location.search;
+            const urlParams = new URLSearchParams(queryString);
+            const countryId = urlParams.get('id');
+
+            var globalUrl = `https://akademija.teltonika.lt/api4/index.php/cities/${countryId}?page=1`;
+
+            async function insertHeading(url){
+                var heading = document.getElementById("heading");
+                const response = await fetch(url);
+                const country = await response.json();
+
+                heading.innerText = `${country.name}`;
+            }
+            insertHeading(`https://akademija.teltonika.lt/api4/index.php/countries/${countryId}`);
+
+            var currentPage = 1;
+            var maxPages = 1;
+
+            async function addPageNumbers(url){
+                const response = await fetch(url);
+                const cities = await response.json();
+                const count = cities.length;
+                // console.log(count);
+
+                var element = document.getElementById("page-num");
+                element.innerHTML = '';
+                var back = document.createElement("button");
+                back.className = "page-button";
+                back.innerHTML = `<img src="media/arrow-back.svg">`;
+                back.setAttribute('onclick', 'pageArrows(0)');
+
+                element.appendChild(back);
+                if(count <= 10){
+                    var singlePage = document.createElement("button");
+                    singlePage.className = "page-button";
+                    singlePage.innerText = "1";
+                    singlePage.setAttribute('onclick', 'changePage(1)');
+                    element.appendChild(singlePage);
+                } else{
+                    var pageCount = count / 10;
+                    if(count % 10 != 0){
+                        pageCount += 1;
+                    }
+                    for (let index = 1; index <= pageCount; index++) {
+                        var page = document.createElement("button");
+                        page.className = "page-button";
+                        page.innerText = index;
+                        page.setAttribute('onclick', `changePage(${index})`);
+                        element.appendChild(page);
+                    }
+                    maxPages = pageCount;
+                }
+                var forward = document.createElement("button");
+                forward.className = "page-button";
+                forward.innerHTML = `<img src="media/arrrow-forward.svg">`;
+                forward.setAttribute('onclick', 'pageArrows(1)');
+                element.appendChild(forward);
+
+            }
+            addPageNumbers(`https://akademija.teltonika.lt/api4/index.php/cities/${countryId}`);
+            
+
+            function changePage(num){
+                if(currentPage == num) return;
+                else{
+                    currentPage = num;
+                    globalUrl = `https://akademija.teltonika.lt/api4/index.php/cities/${countryId}?page=${num}`;
+                    loadIntoTable(globalUrl);
+                }
+            }
+            function pageArrows(action){
+                if(action == 0){
+                    if(currentPage != 1){
+                        currentPage = currentPage - 1;
+                        globalUrl = `https://akademija.teltonika.lt/api4/index.php/cities/${countryId}?page=${currentPage}`;
+                        loadIntoTable(globalUrl);
+                    }
+                } else{
+                    if(currentPage != maxPages){
+                        currentPage = currentPage + 1;
+                        globalUrl = `https://akademija.teltonika.lt/api4/index.php/cities/${countryId}?page=${currentPage}`;
+                        loadIntoTable(globalUrl);
+                    }
+                }
+            }
+
+            async function loadIntoTable(url){
+                const response = await fetch(url);
+                const cities = await response.json();
+                console.log(cities);
+                var table = document.getElementById("data-table");
+                
+                const tableBody = document.getElementById('data-display').children[1];
+                tableBody.innerHTML = '';
+
+                for (var i = 0; i < cities.length; i++) {
+                    console.log(cities[i].id);
+                    var row = `<tr>
+                                <td>${cities[i].name}</a></td>
+                                <td>${cities[i].area}</td>
+                                <td>${cities[i].population}</td>
+                                <td>${cities[i].postcode}</td>
+                                <td><div class="edit-div"><button class="edit-button remove" onclick=deleteCountry("https://akademija.teltonika.lt/api4/index.php/cities/${cities[i].id}") ></button><button class="edit-button edit" onclick="openEditModal(${cities[i].id}, '${cities[i].name}', '${cities[i].area}', '${cities[i].population}', '${cities[i].postcode}')"></button></div></td>
+                                </tr>`
+                    table.innerHTML += row;
+                }
+                addPageNumbers(url);
+                return cities;
+            }
+            loadIntoTable(globalUrl);
+
+            function searchInit(){
+                const searchTerm = document.getElementById('search-field').value;
+                        if(!searchTerm) loadIntoTable(`https://akademija.teltonika.lt/api4/index.php/cities/${countryId}`);
+                        else{
+                                globalUrl = globalUrl+`&text=${searchTerm}`;
+                                loadIntoTable(globalUrl);
+                                console.log(globalUrl);
+                    }
+            }
+            function sortTable(n){
+                    if(n === 1){
+                        if(globalUrl.includes('&order=asc')){
+                            globalUrl = globalUrl.replace('asc', 'desc');
+                            loadIntoTable(globalUrl);
+                            console.log(globalUrl);
+                        }
+                        else{
+                            if(globalUrl.includes('&order=desc')){
+                                loadIntoTable(globalUrl);
+                            }
+                            else{
+                                globalUrl += `&order=desc`
+                                loadIntoTable(globalUrl);
+                                console.log(globalUrl);
+                            }
+                        }
+                    }
+                    else{
+                        if(globalUrl.includes('&order=desc')){
+                            globalUrl = globalUrl.replace('desc', 'asc')
+                            loadIntoTable(globalUrl);
+                            console.log(globalUrl);
+                        } 
+                        else{
+                            if(globalUrl.includes('&order=asc')){
+                                loadIntoTable(globalUrl);
+                            }else{
+                                globalUrl += `&order=asc`
+                                loadIntoTable(globalUrl);
+                                console.log(globalUrl);
+                            }
+                        }
+                    }
+                }
+                function filterTable(){
+                    var x = document.getElementById("data-filter");
+                    globalUrl += `&date=${x.value}`;
+                    console.log(globalUrl);
+                    loadIntoTable(globalUrl);
+                }
+                function backToMain(){
+                    globalUrl = `https://akademija.teltonika.lt/api4/index.php/cities/${countryId}`;
+                    loadIntoTable(globalUrl);
+                }
+                async function postFormDataAsJson( url, formData ){
+                    const plainFormData = Object.fromEntries(formData.entries());
+                    const formDataJsonString = JSON.stringify(plainFormData);
+
+                    const fetchOptions = {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+			                Accept: "application/json",
+                        },
+                        body: formDataJsonString,
+                    };
+
+                    const response = await fetch(url, fetchOptions);
+                    if(!response.ok){
+                        const errorMessage = await response.text();
+                        throw new Error(errorMessage);
+                    } else alert("Įrašas pridėtas sėkmingai.");
+                    loadIntoTable(globalUrl);
+                    return response.json();
+                }
+                async function handleSubmit(event){
+                    event.preventDefault();
+
+                    const form = event.currentTarget;
+	                const url = form.action;
+
+                    try{
+                        const data = new FormData(form);
+                        data.append('country_id', countryId);
+                        const responseData = await postFormDataAsJson(url, data);
+
+                        console.log({responseData});
+                    } catch(error){
+                        console.error(error);
+                        alert('Neišėjo pridėti įrašo.');
+                    }
+                }
+
+                const form = document.getElementById("add-data");
+                form.addEventListener('submit', handleSubmit);
+
+                async function deleteCountry(url){
+                    const response = await fetch(url, {
+                        method: 'DELETE',
+                    });
+                    if(!response.ok){
+                        const errorMessage = await response.text();
+                        throw new Error(errorMessage);
+                        alert('Neišėjo ištrinti įrašo.');
+                    }
+                    else alert('Įrašas ištrintas sėkmingai.');
+                    loadIntoTable(globalUrl);
+                }
+                async function putFormDataAsJson( url, formData ){
+                    const plainFormData = Object.fromEntries(formData.entries());
+                    const formDataJsonString = JSON.stringify(plainFormData);
+
+                    const fetchOptions = {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+			                Accept: "application/json",
+                        },
+                        body: formDataJsonString,
+                    };
+
+                    const response = await fetch(url, fetchOptions);
+                    if(!response.ok){
+                        const errorMessage = await response.text();
+                        throw new Error(errorMessage);
+                    } else alert("Įrašas paredaguotas sėkmingai.");
+                    loadIntoTable(globalUrl);
+                    return response.json();
+                }
+
+                async function handleEditSubmit(event, id){
+                    event.preventDefault();
+
+                    const form = event.currentTarget;
+	                const url = `https://akademija.teltonika.lt/api4/index.php/cities/${id}`;
+
+                    try{
+                        const data = new FormData(form);
+                        data.append('country_id', countryId);
+                        const responseData = await putFormDataAsJson(url, data);
+
+                        console.log({responseData});
+                    } catch(error){
+                        console.error(error);
+                        alert('Neišėjo redaguoti įrašo.');
+                    }
+                }
+
+                function openEditModal(id, name, area, population, postcode){
+                    var modal = document.getElementById("editModal");
+            
+                    // // Get the button that opens the modal
+                    // var btn = document.getElementById("add-country");
+                    
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementById("close");
+
+                    modal.style.display = "block";
+                    
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() {
+                        modal.style.display = "none";
+                    }
+
+                    var elName = document.getElementById("name-edit");
+                    elName.setAttribute('value', name);
+                    var elArea = document.getElementById("area-edit");
+                    elArea.setAttribute('value', area);
+                    var elPopulation = document.getElementById("population-edit");
+                    elPopulation.setAttribute('value', population);
+                    var elPostcode = document.getElementById("postcode-edit");
+                    elPostcode.setAttribute('value', postcode);
+                    
+                    // When the user clicks anywhere outside of the modal, close it
+                    window.onclick = function(event) {
+                        if (event.target == modal) {
+                            modal.style.display = "none";
+                        }
+                    }
+                    const form = document.getElementById("edit-data");
+                    form.addEventListener('submit', function (event){ 
+                        handleEditSubmit(event, id)});
+                }
+        </script>
+        <script>
+            // Get the modal
+            var modal = document.getElementById("myModal");
+            
+            // Get the button that opens the modal
+            var btn = document.getElementById("add-country");
+            
+            // Get the <span> element that closes the modal
+            var span = document.getElementsByClassName("close")[0];
+            
+            // When the user clicks the button, open the modal 
+            btn.onclick = function() {
+              modal.style.display = "block";
+            }
+            
+            // When the user clicks on <span> (x), close the modal
+            span.onclick = function() {
+              modal.style.display = "none";
+            }
+            
+            // When the user clicks anywhere outside of the modal, close it
+            window.onclick = function(event) {
+              if (event.target == modal) {
+                modal.style.display = "none";
+              }
+            }
+            </script>
+    </body>
+</html>
